@@ -12,8 +12,6 @@ type FortuneFinderProps = {
 
 type DetectionSource = "nickname" | "avatar";
 
-type UploadState = "idle" | "uploading";
-
 const modeOptions: Array<{
   value: FortuneMode;
   label: string;
@@ -38,15 +36,11 @@ export default function FortuneFinder({
   const [mode, setMode] = useState<FortuneMode>("random");
   const [isNavigating, setIsNavigating] = useState(false);
 
-  // 头像模式：保存 File 对象（用于上传）+ ObjectURL（用于预览）
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState("");
-  const [uploadState, setUploadState] = useState<UploadState>("idle");
 
-  const isAvatarBusy = uploadState === "uploading" || isNavigating;
   const canSubmitNickname = nickname.trim().length > 0 && !isNavigating;
-  const canSubmitAvatar = avatarFile !== null && !isAvatarBusy;
+  const canSubmitAvatar = avatarDataUrl !== null && !isNavigating;
 
   function handleNicknameSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -57,34 +51,14 @@ export default function FortuneFinder({
     router.push(`/checking?${params.toString()}`);
   }
 
-  async function handleAvatarSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleAvatarSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canSubmitAvatar || !avatarFile) return;
+    if (!canSubmitAvatar || !avatarDataUrl) return;
 
-    setAvatarError("");
-    setUploadState("uploading");
-
-    try {
-      const formData = new FormData();
-      formData.append("file", avatarFile);
-
-      const res = await fetch("/api/upload-avatar", {
-        method: "POST",
-        body: formData,
-      });
-      const json = (await res.json()) as { url?: string; error?: string };
-
-      if (!res.ok || !json.url) {
-        throw new Error(json.error ?? "上传失败，请稍后重试。");
-      }
-
-      setIsNavigating(true);
-      const params = new URLSearchParams({ mode, source: "avatar", avatarUrl: json.url });
-      router.push(`/checking?${params.toString()}`);
-    } catch (err) {
-      setAvatarError(err instanceof Error ? err.message : "上传失败，请稍后重试。");
-      setUploadState("idle");
-    }
+    setIsNavigating(true);
+    sessionStorage.setItem("pvz-avatar-data", avatarDataUrl);
+    const params = new URLSearchParams({ mode, source: "avatar" });
+    router.push(`/checking?${params.toString()}`);
   }
 
   function setFile(file: File) {
@@ -97,15 +71,19 @@ export default function FortuneFinder({
       setAvatarError("图片超过 5MB，请压缩后重试。");
       return;
     }
-    // 释放旧预览 URL，避免内存泄漏
-    if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
-    setAvatarFile(file);
-    setAvatarPreviewUrl(URL.createObjectURL(file));
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result;
+      if (typeof result === "string") setAvatarDataUrl(result);
+    };
+    reader.readAsDataURL(file);
   }
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (file) setFile(file);
+    // 重置 input，允许重新选择同一文件
+    event.target.value = "";
   }
 
   function handleDropZoneClick() {
@@ -120,12 +98,6 @@ export default function FortuneFinder({
 
   function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
     event.preventDefault();
-  }
-
-  function getAvatarButtonLabel() {
-    if (uploadState === "uploading") return "上传中...";
-    if (isNavigating) return "正在跳转...";
-    return "开始检测";
   }
 
   return (
@@ -193,11 +165,10 @@ export default function FortuneFinder({
 
       {/* 头像模式 */}
       {detectionSource === "avatar" && (
-        <form className="flex flex-col gap-4" onSubmit={(e) => void handleAvatarSubmit(e)}>
+        <form className="flex flex-col gap-4" onSubmit={handleAvatarSubmit}>
           <div className="flex flex-col gap-2">
             <span className="text-sm font-semibold text-[#58451e]">上传头像</span>
 
-            {/* 拖拽 / 点击上传区 */}
             <div
               role="button"
               tabIndex={0}
@@ -208,11 +179,11 @@ export default function FortuneFinder({
               onDrop={handleDrop}
               onDragOver={handleDragOver}
             >
-              {avatarPreviewUrl ? (
+              {avatarDataUrl ? (
                 <div className="flex flex-col items-center gap-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={avatarPreviewUrl}
+                    src={avatarDataUrl}
                     alt="头像预览"
                     className="h-24 w-24 rounded-2xl object-cover shadow-[0_8px_20px_-8px_rgba(0,0,0,0.18)]"
                   />
@@ -229,7 +200,6 @@ export default function FortuneFinder({
               )}
             </div>
 
-            {/* 隐藏 file input */}
             <input
               ref={fileInputRef}
               type="file"
@@ -238,7 +208,6 @@ export default function FortuneFinder({
               onChange={handleFileChange}
             />
 
-            {/* 错误提示 */}
             {avatarError && (
               <p className="text-xs text-red-500">{avatarError}</p>
             )}
@@ -251,7 +220,7 @@ export default function FortuneFinder({
             disabled={!canSubmitAvatar}
             type="submit"
           >
-            {getAvatarButtonLabel()}
+            {isNavigating ? "正在跳转..." : "开始检测"}
           </button>
         </form>
       )}
@@ -259,7 +228,6 @@ export default function FortuneFinder({
   );
 }
 
-// 阵营选择器（昵称 / 头像模式共用）
 function ModeSelector({
   mode,
   onChange,
@@ -273,7 +241,6 @@ function ModeSelector({
       <div className="grid gap-3 md:grid-cols-3">
         {modeOptions.map((option) => {
           const active = option.value === mode;
-
           return (
             <button
               key={option.value}

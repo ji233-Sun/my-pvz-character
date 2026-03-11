@@ -30,7 +30,7 @@ type GenerateFortuneInput = {
 };
 
 type GenerateFortuneFromAvatarInput = {
-  imageUrl: string;
+  imageDataUrl: string;
   mode: FortuneMode;
 };
 
@@ -173,12 +173,12 @@ function buildAvatarPrompt(characterType: CharacterType) {
 }
 
 export async function generateFortuneResultFromAvatar({
-  imageUrl,
+  imageDataUrl,
   mode,
 }: GenerateFortuneFromAvatarInput): Promise<FortuneResult> {
   const characterType = resolveCharacterType(mode);
   const modelText = await generateTextWithVision({
-    imageUrl,
+    imageDataUrl,
     systemPrompt: avatarSystemPrompt,
     userPrompt: buildAvatarPrompt(characterType),
   });

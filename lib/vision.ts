@@ -1,5 +1,5 @@
 type VisionRequest = {
-  imageUrl: string;
+  imageDataUrl: string;
   systemPrompt: string;
   userPrompt: string;
 };
@@ -9,7 +9,7 @@ const DEFAULT_MODEL = "gpt-4o-mini";
 const DEFAULT_API_PATH = "/chat/completions";
 
 export async function generateTextWithVision({
-  imageUrl,
+  imageDataUrl,
   systemPrompt,
   userPrompt,
 }: VisionRequest): Promise<string> {
@@ -33,7 +33,7 @@ export async function generateTextWithVision({
       {
         role: "user",
         content: [
-          { type: "image_url", image_url: { url: imageUrl } },
+          { type: "image_url", image_url: { url: imageDataUrl } },
           { type: "text", text: userPrompt },
         ],
       },
