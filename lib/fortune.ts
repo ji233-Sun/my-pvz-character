@@ -40,6 +40,7 @@ const systemPrompt = [
   "只能从候选列表里选，不能自创角色。",
   "最终只能输出 JSON，不要输出 Markdown，不要输出代码块，不要输出额外说明。",
   'JSON 结构必须是 {"name":"角色名","summary":"一句短评","reason":"2到4句理由","vibeTags":["标签1","标签2","标签3"]}。',
+  "严禁在任何字段的字符串内容中使用英文双引号（\"），如需引用请改用中文书名号「」或『』。",
 ].join("");
 
 export async function generateFortuneResult({
