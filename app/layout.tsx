@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Noto_Sans_SC, ZCOOL_KuaiLe } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const notoSansSc = Noto_Sans_SC({
@@ -34,6 +35,7 @@ export default function RootLayout({
         className={`${notoSansSc.variable} ${geistMono.variable} ${zcoolKuaiLe.variable} antialiased`}
       >
         {children}
+        <Analytics />
       </body>
     </html>
   );
