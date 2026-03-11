@@ -36,15 +36,11 @@ export default function FortuneFinder({
   const [mode, setMode] = useState<FortuneMode>("random");
   const [isNavigating, setIsNavigating] = useState(false);
 
-  // 头像模式：File 对象 + 本地预览 URL
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState("");
-  const [isUploading, setIsUploading] = useState(false);
 
-  const isBusy = isUploading || isNavigating;
   const canSubmitNickname = nickname.trim().length > 0 && !isNavigating;
-  const canSubmitAvatar = avatarFile !== null && !isBusy;
+  const canSubmitAvatar = avatarDataUrl !== null && !isNavigating;
 
   function handleNicknameSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -55,34 +51,14 @@ export default function FortuneFinder({
     router.push(`/checking?${params.toString()}`);
   }
 
-  async function handleAvatarSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleAvatarSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canSubmitAvatar || !avatarFile) return;
+    if (!canSubmitAvatar || !avatarDataUrl) return;
 
-    setAvatarError("");
-    setIsUploading(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", avatarFile);
-
-      const res = await fetch("/api/upload-avatar", {
-        method: "POST",
-        body: formData,
-      });
-      const json = (await res.json()) as { url?: string; error?: string };
-
-      if (!res.ok || !json.url) {
-        throw new Error(json.error ?? "上传失败，请稍后重试。");
-      }
-
-      setIsNavigating(true);
-      const params = new URLSearchParams({ mode, source: "avatar", avatarUrl: json.url });
-      router.push(`/checking?${params.toString()}`);
-    } catch (err) {
-      setAvatarError(err instanceof Error ? err.message : "上传失败，请稍后重试。");
-      setIsUploading(false);
-    }
+    setIsNavigating(true);
+    sessionStorage.setItem("pvz-avatar-data", avatarDataUrl);
+    const params = new URLSearchParams({ mode, source: "avatar" });
+    router.push(`/checking?${params.toString()}`);
   }
 
   function setFile(file: File) {
@@ -95,14 +71,18 @@ export default function FortuneFinder({
       setAvatarError("图片超过 5MB，请压缩后重试。");
       return;
     }
-    if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
-    setAvatarFile(file);
-    setAvatarPreviewUrl(URL.createObjectURL(file));
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result;
+      if (typeof result === "string") setAvatarDataUrl(result);
+    };
+    reader.readAsDataURL(file);
   }
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (file) setFile(file);
+    // 重置 input，允许重新选择同一文件
     event.target.value = "";
   }
 
@@ -118,12 +98,6 @@ export default function FortuneFinder({
 
   function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
     event.preventDefault();
-  }
-
-  function getAvatarButtonLabel() {
-    if (isUploading) return "上传中...";
-    if (isNavigating) return "正在跳转...";
-    return "开始检测";
   }
 
   return (
@@ -191,7 +165,7 @@ export default function FortuneFinder({
 
       {/* 头像模式 */}
       {detectionSource === "avatar" && (
-        <form className="flex flex-col gap-4" onSubmit={(e) => void handleAvatarSubmit(e)}>
+        <form className="flex flex-col gap-4" onSubmit={handleAvatarSubmit}>
           <div className="flex flex-col gap-2">
             <span className="text-sm font-semibold text-[#58451e]">上传头像</span>
 
@@ -205,11 +179,11 @@ export default function FortuneFinder({
               onDrop={handleDrop}
               onDragOver={handleDragOver}
             >
-              {avatarPreviewUrl ? (
+              {avatarDataUrl ? (
                 <div className="flex flex-col items-center gap-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={avatarPreviewUrl}
+                    src={avatarDataUrl}
                     alt="头像预览"
                     className="h-24 w-24 rounded-2xl object-cover shadow-[0_8px_20px_-8px_rgba(0,0,0,0.18)]"
                   />
@@ -246,7 +220,7 @@ export default function FortuneFinder({
             disabled={!canSubmitAvatar}
             type="submit"
           >
-            {getAvatarButtonLabel()}
+            {isNavigating ? "正在跳转..." : "开始检测"}
           </button>
         </form>
       )}

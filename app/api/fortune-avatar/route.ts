@@ -6,36 +6,43 @@ import type { FortuneMode } from "@/lib/pvz-data";
 export const runtime = "nodejs";
 
 type RequestPayload = {
-  imageUrl?: unknown;
+  imageDataUrl?: unknown;
   mode?: unknown;
 };
 
 const allowedModes = new Set<FortuneMode>(["random", "plant", "zombie"]);
 
+// 7MB base64 上限
+const MAX_IMAGE_SIZE = 7 * 1024 * 1024;
+
 export async function POST(request: Request) {
   try {
     const payload = (await request.json()) as RequestPayload;
 
-    const imageUrl =
-      typeof payload.imageUrl === "string" ? payload.imageUrl.trim() : "";
+    const imageDataUrl =
+      typeof payload.imageDataUrl === "string" ? payload.imageDataUrl : "";
     const mode =
       typeof payload.mode === "string" && allowedModes.has(payload.mode as FortuneMode)
         ? (payload.mode as FortuneMode)
         : null;
 
-    if (!imageUrl) {
-      return NextResponse.json({ error: "请提供头像图片链接。" }, { status: 400 });
+    if (!imageDataUrl) {
+      return NextResponse.json({ error: "请提供头像图片。" }, { status: 400 });
     }
 
-    if (!imageUrl.startsWith("https://")) {
-      return NextResponse.json({ error: "图片链接格式不合法。" }, { status: 400 });
+    if (!imageDataUrl.startsWith("data:image/")) {
+      return NextResponse.json({ error: "图片格式不合法。" }, { status: 400 });
+    }
+
+    if (imageDataUrl.length > MAX_IMAGE_SIZE) {
+      return NextResponse.json({ error: "图片体积过大，请压缩后重试。" }, { status: 400 });
     }
 
     if (!mode) {
       return NextResponse.json({ error: "请选择有效的检测模式。" }, { status: 400 });
     }
 
-    const result = await generateFortuneResultFromAvatar({ imageUrl, mode });
+    const result = await generateFortuneResultFromAvatar({ imageDataUrl, mode });
 
     return NextResponse.json({ result });
   } catch (error) {
