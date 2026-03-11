@@ -7,6 +7,7 @@ import {
   resolveCharacterType,
 } from "@/lib/pvz-data";
 import { generateTextWithMinimax } from "@/lib/minimax";
+import { generateTextWithVision } from "@/lib/vision";
 
 export type FortuneResult = {
   mode: FortuneMode;
@@ -25,6 +26,11 @@ export type FortuneResult = {
 
 type GenerateFortuneInput = {
   nickname: string;
+  mode: FortuneMode;
+};
+
+type GenerateFortuneFromAvatarInput = {
+  imageUrl: string;
   mode: FortuneMode;
 };
 
@@ -144,4 +150,49 @@ function sanitizeTags(value: unknown) {
     .slice(0, 3);
 
   return tags.length > 0 ? tags : ["图鉴气质", "昵称联想", "本命雷达"];
+}
+
+const avatarSystemPrompt = [
+  "你是植物大战僵尸2图鉴人格分析师。",
+  "请仔细观察这张头像图片的外观特征、气质、颜色、情绪表达等视觉信息，从候选列表中选出唯一一个最贴切的角色。",
+  "判断允许带一点幽默，但理由必须自洽，不能空泛。",
+  "只能从候选列表里选，不能自创角色。",
+  "最终只能输出 JSON，不要输出 Markdown，不要输出代码块，不要输出额外说明。",
+  'JSON 结构必须是 {"name":"角色名","summary":"一句短评","reason":"2到4句理由","vibeTags":["标签1","标签2","标签3"]}。',
+  "严禁在任何字段的字符串内容中使用英文双引号（\"），如需引用请改用中文书名号「」或『』。",
+].join("");
+
+function buildAvatarPrompt(characterType: CharacterType) {
+  return [
+    `目标阵营：${typeLabelMap[characterType]}`,
+    "请根据头像的视觉特征（颜色、造型、表情、气质、氛围等）进行匹配。",
+    "输出中的 name 必须和候选列表完全一致。",
+    "候选列表如下：",
+    getPromptCatalog(characterType),
+  ].join("\n");
+}
+
+export async function generateFortuneResultFromAvatar({
+  imageUrl,
+  mode,
+}: GenerateFortuneFromAvatarInput): Promise<FortuneResult> {
+  const characterType = resolveCharacterType(mode);
+  const modelText = await generateTextWithVision({
+    imageUrl,
+    systemPrompt: avatarSystemPrompt,
+    userPrompt: buildAvatarPrompt(characterType),
+  });
+  const parsed = parseModelResponse(modelText);
+  const matchedCharacter = findCharacter(characterType, parsed.name);
+
+  return {
+    mode,
+    characterType,
+    nickname: "你的头像",
+    name: matchedCharacter.name,
+    reason: parsed.reason,
+    summary: parsed.summary,
+    vibeTags: parsed.vibeTags,
+    ...formatCandidateProfile(characterType, matchedCharacter),
+  };
 }

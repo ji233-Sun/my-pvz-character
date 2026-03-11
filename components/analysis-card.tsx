@@ -136,8 +136,9 @@ export default function AnalysisCard({ result, onClose }: Props) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // 2x 缩放，所有坐标保持逻辑值不变
-    ctx.scale(SCALE, SCALE);
+    // 重置变换并清空（防止 React Strict Mode 双调用累积 scale）
+    ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+    ctx.clearRect(0, 0, W, H);
 
     // ── 背景渐变 ──────────────────────────────────────────────────
     const bgGrad = ctx.createLinearGradient(0, 0, W, H);

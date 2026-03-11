@@ -11,7 +11,8 @@ type ApiResponse = {
   error?: string;
 };
 
-const STEPS = ["分析昵称", "匹配图鉴", "生成答案"] as const;
+const NICKNAME_STEPS = ["分析昵称", "匹配图鉴", "生成答案"] as const;
+const AVATAR_STEPS = ["分析头像", "提取气质", "匹配图鉴"] as const;
 
 function CheckingContent() {
   const router = useRouter();
@@ -23,6 +24,11 @@ function CheckingContent() {
 
   const nickname = searchParams.get("nickname") ?? "";
   const mode = searchParams.get("mode") ?? "random";
+  const source = searchParams.get("source") ?? "nickname";
+  const avatarUrl = searchParams.get("avatarUrl") ?? "";
+  const isAvatarMode = source === "avatar";
+
+  const STEPS = isAvatarMode ? AVATAR_STEPS : NICKNAME_STEPS;
 
   // 分步骤动画（纯视觉，与真实进度无关）
   useEffect(() => {
@@ -36,13 +42,19 @@ function CheckingContent() {
 
   useEffect(() => {
     if (hasFetched.current) return;
-    if (!nickname) {
-      router.replace("/");
-      return;
-    }
     hasFetched.current = true;
 
-    async function fetchResult() {
+    if (isAvatarMode) {
+      void fetchAvatarResult();
+    } else {
+      if (!nickname) {
+        router.replace("/");
+        return;
+      }
+      void fetchNicknameResult();
+    }
+
+    async function fetchNicknameResult() {
       try {
         const response = await fetch("/api/fortune", {
           method: "POST",
@@ -62,8 +74,32 @@ function CheckingContent() {
       }
     }
 
-    void fetchResult();
-  }, [nickname, mode, router]);
+    async function fetchAvatarResult() {
+      try {
+        if (!avatarUrl) {
+          router.replace("/");
+          return;
+        }
+
+        const response = await fetch("/api/fortune-avatar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl: avatarUrl, mode }),
+        });
+        const payload = (await response.json()) as ApiResponse;
+
+        if (!response.ok || !payload.result) {
+          throw new Error(payload.error ?? "生成失败，请稍后再试。");
+        }
+
+        sessionStorage.setItem("pvz-result", JSON.stringify(payload.result));
+        router.replace("/result");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "生成失败，请稍后再试。");
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (error) {
     return (
@@ -101,7 +137,7 @@ function CheckingContent() {
           />
           {/* 中心图标 */}
           <div className="relative flex h-12 w-12 items-center justify-center rounded-full bg-[#eef7d9] text-2xl shadow-[0_4px_12px_-4px_rgba(95,143,38,0.4)]">
-            🌿
+            {isAvatarMode ? "🖼️" : "🌿"}
           </div>
         </div>
 
@@ -109,13 +145,17 @@ function CheckingContent() {
         <div className="flex flex-col gap-2">
           <p className="text-xs uppercase tracking-[0.28em] text-[#8b7440]">AI Fortune Engine</p>
           <p className="text-2xl font-semibold text-[#2d3d1e]">正在翻图鉴</p>
-          <p className="text-sm leading-7 text-[#6d5d32]">
-            AI 正在为{" "}
-            <span className="rounded-md bg-[#eef7d9] px-2 py-0.5 font-semibold text-[#3d5c20]">
-              {nickname}
-            </span>{" "}
-            寻找专属角色
-          </p>
+          {isAvatarMode ? (
+            <p className="text-sm leading-7 text-[#6d5d32]">AI 正在分析你的头像</p>
+          ) : (
+            <p className="text-sm leading-7 text-[#6d5d32]">
+              AI 正在为{" "}
+              <span className="rounded-md bg-[#eef7d9] px-2 py-0.5 font-semibold text-[#3d5c20]">
+                {nickname}
+              </span>{" "}
+              寻找专属角色
+            </p>
+          )}
         </div>
 
         {/* 分步骤进度条 */}
