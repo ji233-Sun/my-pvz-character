@@ -25,6 +25,7 @@ function CheckingContent() {
   const nickname = searchParams.get("nickname") ?? "";
   const mode = searchParams.get("mode") ?? "random";
   const source = searchParams.get("source") ?? "nickname";
+  const avatarUrl = searchParams.get("avatarUrl") ?? "";
   const isAvatarMode = source === "avatar";
 
   const STEPS = isAvatarMode ? AVATAR_STEPS : NICKNAME_STEPS;
@@ -75,8 +76,7 @@ function CheckingContent() {
 
     async function fetchAvatarResult() {
       try {
-        const imageDataUrl = sessionStorage.getItem("pvz-avatar-data");
-        if (!imageDataUrl) {
+        if (!avatarUrl) {
           router.replace("/");
           return;
         }
@@ -84,7 +84,7 @@ function CheckingContent() {
         const response = await fetch("/api/fortune-avatar", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageDataUrl, mode }),
+          body: JSON.stringify({ imageUrl: avatarUrl, mode }),
         });
         const payload = (await response.json()) as ApiResponse;
 
@@ -92,6 +92,8 @@ function CheckingContent() {
           throw new Error(payload.error ?? "生成失败，请稍后再试。");
         }
 
+        // 将 R2 URL 存入 sessionStorage，供结果页卡片展示头像
+        sessionStorage.setItem("pvz-avatar-data", avatarUrl);
         sessionStorage.setItem("pvz-result", JSON.stringify(payload.result));
         router.replace("/result");
       } catch (err) {
