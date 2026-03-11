@@ -12,6 +12,7 @@ export default function ResultPage() {
   const [result, setResult] = useState<FortuneResult | null>(null);
   const [mounted, setMounted] = useState(false);
   const [showCard, setShowCard] = useState(false);
+  const [avatarDataUrl, setAvatarDataUrl] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     setMounted(true);
@@ -22,6 +23,8 @@ export default function ResultPage() {
     }
     try {
       setResult(JSON.parse(stored) as FortuneResult);
+      const avatar = sessionStorage.getItem("pvz-avatar-data");
+      if (avatar) setAvatarDataUrl(avatar);
     } catch {
       router.replace("/");
     }
@@ -165,7 +168,7 @@ export default function ResultPage() {
 
       {/* 分析卡片弹层 */}
       {showCard && (
-        <AnalysisCard result={result} onClose={() => setShowCard(false)} />
+        <AnalysisCard result={result} avatarDataUrl={avatarDataUrl} onClose={() => setShowCard(false)} />
       )}
     </main>
   );

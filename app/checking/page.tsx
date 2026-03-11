@@ -92,7 +92,6 @@ function CheckingContent() {
           throw new Error(payload.error ?? "生成失败，请稍后再试。");
         }
 
-        sessionStorage.removeItem("pvz-avatar-data");
         sessionStorage.setItem("pvz-result", JSON.stringify(payload.result));
         router.replace("/result");
       } catch (err) {

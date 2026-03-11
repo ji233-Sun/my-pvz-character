@@ -122,10 +122,17 @@ function countLines(
 
 interface Props {
   result: FortuneResult;
+  avatarDataUrl?: string;
   onClose: () => void;
 }
 
-export default function AnalysisCard({ result, onClose }: Props) {
+// 头像区域常量
+const AVATAR_SIZE = 108;
+const AVATAR_R = 20;
+const AVATAR_X = W - PAD - AVATAR_SIZE; // 746
+const AVATAR_Y = PAD;                   // 46
+
+export default function AnalysisCard({ result, avatarDataUrl, onClose }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isPlant = result.characterType === "plant";
 
@@ -168,6 +175,38 @@ export default function AnalysisCard({ result, onClose }: Props) {
     ctx.strokeStyle = isPlant ? "rgba(113,162,57,0.35)" : "rgba(155,95,55,0.35)";
     ctx.lineWidth = 1.5;
     ctx.stroke();
+
+    // ── 头像（仅头像检测模式传入时渲染）────────────────────────────
+    if (avatarDataUrl) {
+      try {
+        const img = new Image();
+        img.src = avatarDataUrl;
+        await new Promise<void>((resolve) => {
+          img.onload = () => resolve();
+          img.onerror = () => resolve(); // 加载失败静默跳过
+        });
+
+        // 白色衬底（给透明图片用）
+        roundRectPath(ctx, AVATAR_X, AVATAR_Y, AVATAR_SIZE, AVATAR_SIZE, AVATAR_R);
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        ctx.fill();
+
+        // 圆角裁剪 + 绘制头像
+        ctx.save();
+        roundRectPath(ctx, AVATAR_X, AVATAR_Y, AVATAR_SIZE, AVATAR_SIZE, AVATAR_R);
+        ctx.clip();
+        ctx.drawImage(img, AVATAR_X, AVATAR_Y, AVATAR_SIZE, AVATAR_SIZE);
+        ctx.restore();
+
+        // 主题色描边
+        roundRectPath(ctx, AVATAR_X - 1.5, AVATAR_Y - 1.5, AVATAR_SIZE + 3, AVATAR_SIZE + 3, AVATAR_R + 1.5);
+        ctx.strokeStyle = isPlant ? "rgba(113,162,57,0.55)" : "rgba(155,95,55,0.5)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      } catch {
+        // 头像加载失败时不影响卡片其余内容
+      }
+    }
 
     // ── 类型标签组 ────────────────────────────────────────────────
     const [tBg, tFg, tBd] = isPlant
@@ -310,7 +349,7 @@ export default function AnalysisCard({ result, onClose }: Props) {
     ctx.font = '400 11px "Noto Sans SC", sans-serif';
     ctx.fillStyle = dimColor;
     ctx.fillText(APP_HOST, PAD, STRIP_Y + 66);
-  }, [isPlant, result]);
+  }, [isPlant, result, avatarDataUrl]);
 
   useEffect(() => {
     void draw();
