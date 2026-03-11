@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+import AnalysisCard from "@/components/analysis-card";
 import type { FortuneResult } from "@/lib/fortune";
 
 export default function ResultPage() {
   const router = useRouter();
   const [result, setResult] = useState<FortuneResult | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [showCard, setShowCard] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -140,18 +142,31 @@ export default function ResultPage() {
 
         {/* 底部操作 */}
         <div className="flex flex-col items-center gap-3">
-          <Link
-            href="/"
-            className="inline-flex h-13 items-center justify-center rounded-full border border-[#496f1f] bg-[linear-gradient(135deg,#8bc949,#5f8f26)] px-10 py-3.5 text-base font-semibold text-white shadow-[0_16px_30px_-18px_rgba(60,96,21,0.92)] hover:-translate-y-0.5"
-          >
-            再测一次
-          </Link>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={() => setShowCard(true)}
+              className="inline-flex h-13 items-center justify-center gap-2 rounded-full border border-[var(--line-strong)] bg-white/80 px-8 py-3.5 text-base font-semibold text-[#40621d] hover:-translate-y-0.5"
+            >
+              生成分析卡片
+            </button>
+            <Link
+              href="/"
+              className="inline-flex h-13 items-center justify-center rounded-full border border-[#496f1f] bg-[linear-gradient(135deg,#8bc949,#5f8f26)] px-10 py-3.5 text-base font-semibold text-white shadow-[0_16px_30px_-18px_rgba(60,96,21,0.92)] hover:-translate-y-0.5"
+            >
+              再测一次
+            </Link>
+          </div>
           <p className="text-xs text-[#a19166]">
             结果由 AI 随机生成，仅供娱乐
           </p>
         </div>
 
       </div>
+
+      {/* 分析卡片弹层 */}
+      {showCard && (
+        <AnalysisCard result={result} onClose={() => setShowCard(false)} />
+      )}
     </main>
   );
 }
